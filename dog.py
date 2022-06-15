@@ -75,6 +75,8 @@ class Connection(ConnectionBase):
         apikey = self.get_option("apikey")
         self.client = dc.DogClient(base_url = base_url, apikey = apikey)
         self._connected = True
+        res = self.client.get_host_by_name(self.host)
+        self.hostkey = res.get("hostkey")
         return self
 
     def exec_command(self, cmd, sudoable=False, in_data=None):
@@ -84,29 +86,16 @@ class Connection(ConnectionBase):
         if in_data:
             raise errors.AnsibleError("Internal Error: this module does not support optimized module pipelining")
 
-        #self._display.vvv("load_name %s" % (self._load_name))
-        #self._display.vvv("play_context %s" % (self._play_context.__dict__))
-        #self._display.vvv("self._options %s" % (self._options))
-        #self._display.vvv("self._options %s" % (self._options))
         self._display.vvv("EXEC %s" % (cmd), host=self.host)
-        # need to add 'true;' to work around https://github.com/dog/dog/issues/28077
-        #res = self.client.cmd(self.host, 'cmd.exec_code_all', ['bash', 'true;' + cmd])
         cmd = {"command":cmd, "use_shell":"true"} 
         res = None
-        res = self.client.exec_command(id=self.host, json=cmd)
+        res = self.client.exec_command(id=self.hostkey, json=cmd)
         self._display.vvv("res %s" % (res))
-        p = res[self.host]
+        p = res[self.hostkey]
         if p['retcode'] == 0:
             return (0, p['stdout'], p['stderr'])
         else:
             return (p['retcode'], p['stdout'], p['stderr'])
-            #raise errors.AnsibleError("Host %s returned an error" % self.host)
-            #raise errors.AnsibleError("Minion %s didn't answer, check if dog-minion is running and the name is correct" % self.host)
-
-        #if self.host not in res:
-        #    raise errors.AnsibleError("Host %s didn't answer, check if dog_agent is running and the name is correct" % self.host)
-
-        #return (res)
 
     def _normalize_path(self, path, prefix):
         if not path.startswith(os.path.sep):
@@ -121,10 +110,8 @@ class Connection(ConnectionBase):
 
         out_path = self._normalize_path(out_path, '/')
         self._display.vvv("PUT %s TO %s" % (in_path, out_path), host=self.host)
-        #content = open(in_path).read()
-        #self.client.cmd(self.host, 'file.write', [out_path, content])
         files = {in_path: out_path}
-        res = self.client.send_file(id=self.host, files=files)
+        res = self.client.send_file(id=self.hostkey, files=files)
         return res
 
     # TODO test it
@@ -135,8 +122,7 @@ class Connection(ConnectionBase):
 
         in_path = self._normalize_path(in_path, '/')
         self._display.vvv("FETCH %s TO %s" % (in_path, out_path), host=self.host)
-        #content = self.client.cmd(self.host, 'cp.get_file_str', [in_path])[self.host]
-        content = self.client.fetch_file(id=self.host, file=in_path)
+        content = self.client.fetch_file(id=self.hostkey, file=in_path)
         open(out_path, 'wb').write(content)
 
     def close(self):
