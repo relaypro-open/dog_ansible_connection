@@ -63,6 +63,9 @@ class Connection(ConnectionBase):
     transport = 'dog'
 
     def __init__(self, play_context, new_stdin, *args, **kwargs):
+        self.apikey = os.getenv("DOG_API_KEY")
+        if self.apikey == None:
+            print("ERROR: DOG_API_KEY not set")
         super(Connection, self).__init__(play_context, new_stdin, *args, **kwargs)
         self.host = self._play_context.remote_addr
 
@@ -72,8 +75,7 @@ class Connection(ConnectionBase):
         super(Connection, self)._connect()
       
         base_url = self.get_option("base_url")
-        apikey = self.get_option("apikey")
-        self.client = dc.DogClient(base_url = base_url, apikey = apikey)
+        self.client = dc.DogClient(base_url = base_url, apikey = self.apikey)
         self._connected = True
         res = self.client.get_host_by_name(self.host)
         self.hostkey = res.get("hostkey")
